@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endless Runner - Built with Grok!</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 70%, #E0F6FF 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+        }
+        canvas {
+            border: 3px solid #333;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 70%, #90EE90 100%);
+            display: block;
+            max-width: 100%;
+            max-height: 100vh;
+        }
+        #instructions {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #333;
+            font-size: 18px;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }
+    </style>
+</head>
+<body>
+    <div id="instructions">
+        <div>🕹️ Endless Runner v1.0</div>
+        <div>Jump: SPACE or ↑</div>
+        <div>Restart: R (after Game Over)</div>
+        <div>Goal: Survive & rack up score!</div>
+    </div>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameSpeed = 6;
+        let gravity = 0.8;
+        let score = 0;
+        let highScore = localStorage.getItem('endlessRunnerHighScore') || 0;
+        let gameRunning = true;
+
+        // Player
+        const player = {
+            x: 100,
+            y: 250,
+            width: 60,
+            height: 60,
+            velY: 0,
+            jumping: false,
+            color: '#4A90E2'
+        };
+
+        // Obstacles
+        let obstacles = [];
+
+        // Keys
+        const keys = {};
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            e.preventDefault();
+            keys[e.code] = true;
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Spawn obstacle randomly
+        function spawnObstacle() {
+            const heightVariation = Math.random() * 30 + 50; // 50-80 height
+            obstacles.push({
+                x: canvas.width,
+                y: canvas.height - heightVariation - 50, // Ground level
+                width: 40,
+                height: heightVariation,
+                color: '#E74C3C'
+            });
+        }
+
+        // Reset game
+        function reset() {
+            player.y = 250;
+            player.velY = 0;
+            player.jumping = false;
+            obstacles = [];
+            score = 0;
+            gameSpeed = 6;
+            gameRunning = true;
+        }
+
+        // Update logic
+        function update() {
+            if (!gameRunning) return;
+
+            // Jump input
+            if ((keys['Space'] || keys['ArrowUp']) && !player.jumping) {
+                player.velY = -16;
+                player.jumping = true;
+            }
+
+            // Apply gravity
+            player.velY += gravity;
+            player.y += player.velY;
+
+            // Ground collision
+            if (player.y >= 250) {
+                player.y = 250;
+                player.jumping = false;
+                player.velY = 0;
+            }
+
+            // Move obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].x -= gameSpeed;
+
+                // Remove off-screen obstacles & increment score
+                if (obstacles[i].x + obstacles[i].width < 0) {
+                    obstacles.splice(i, 1);
+                    score++;
+                    if (score > highScore) {
+                        highScore = score;
+                        localStorage.setItem('endlessRunnerHighScore', highScore);
+                    }
+                }
+            }
+
+            // Spawn new obstacles (rate increases slightly with speed)
+            if (Math.random() < (0.015 + gameSpeed * 0.001)) {
+                spawnObstacle();
+            }
+
+            // Collision detection
+            for (let obs of obstacles) {
+                if (player.x < obs.x + obs.width &&
+                    player.x + player.width > obs.x &&
+                    player.y < obs.y + obs.height &&
+                    player.y + player.height > obs.y) {
+                    gameRunning = false;
+                }
+            }
+
+            // Gradually increase speed
+            gameSpeed += 0.005;
+        }
+
+        // Draw everything
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Sky gradient (already in CSS bg, but reinforce)
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(0.7, '#98D8E8');
+            gradient.addColorStop(1, '#90EE90');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Scrolling ground (simple grass pattern)
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+
+            // Ground lines for motion illusion
+            ctx.strokeStyle = '#32CD32';
+            ctx.lineWidth = 4;
+            for (let i = 0; i < canvas.width; i += 60) {
+                ctx.beginPath();
+                ctx.moveTo(i - (score * 3) % 60, canvas.height - 25);
+                ctx.lineTo(i - (score * 3) % 60 + 30, canvas.height - 25);
+                ctx.stroke();
+            }
+
+            // Draw player (simple rounded rect with "run" animation)
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 5;
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.roundRect(player.x, player.y, player.width, player.height, 10);
+            ctx.fill();
+            ctx.restore();
+
+            // "Running" legs animation (basic)
+            const legOffset = Math.sin(score * 0.3) * 5;
+            ctx.fillStyle = '#2C5F99';
+            ctx.fillRect(player.x + 15, player.y + 45, 8, 15 + legOffset);
+            ctx.fillRect(player.x + 35, player.y + 45, 8, 15 - legOffset);
+
+            // Draw obstacles
+            for (let obs of obstacles) {
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 5;
+                ctx.shadowOffsetX = 3;
+                ctx.shadowOffsetY = 3;
+                ctx.fillStyle = obs.color;
+                ctx.beginPath();
+                ctx.roundRect(obs.x, obs.y, obs.width, obs.height, 5);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // UI
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(10, 10, 200, 60);
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Score: ${score}`, 20, 35);
+            ctx.fillText(`High: ${highScore}`, 20, 60);
+
+            // Game Over screen
+            if (!gameRunning) {
+                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFF';
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 40);
+                ctx.font = 'bold 28px Arial';
+                ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 10);
+                ctx.font = '24px Arial';
+                ctx.fillText('Press R to Restart', canvas.width / 2, canvas.height / 2 + 60);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            // Handle restart
+            if (!gameRunning && keys['KeyR']) {
+                reset();
+            }
+
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Polyfill for roundRect (older browsers)
+        if (!ctx.roundRect) {
+            ctx.roundRect = function(x, y, w, h, r) {
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.closePath();
+            };
+        }
+
+        // Start the game!
+        gameLoop();
+    </script>
+</body>
+</html>
