@@ -48,16 +48,17 @@
         const ctx = canvas.getContext('2d');
 
         // Game state
+        const groundHeight = 50;
         let gameSpeed = 6;
         let gravity = 0.8;
         let score = 0;
-        let highScore = localStorage.getItem('endlessRunnerHighScore') || 0;
+        let highScore = Number(localStorage.getItem('endlessRunnerHighScore')) || 0;
         let gameRunning = true;
 
         // Player
         const player = {
             x: 100,
-            y: 250,
+            y: canvas.height - groundHeight - 60,
             width: 60,
             height: 60,
             velY: 0,
@@ -85,7 +86,7 @@
             const heightVariation = Math.random() * 30 + 50; // 50-80 height
             obstacles.push({
                 x: canvas.width,
-                y: canvas.height - heightVariation - 50, // Ground level
+                y: canvas.height - heightVariation - groundHeight, // Ground level
                 width: 40,
                 height: heightVariation,
                 color: '#E74C3C'
@@ -94,7 +95,7 @@
 
         // Reset game
         function reset() {
-            player.y = 250;
+            player.y = canvas.height - groundHeight - player.height;
             player.velY = 0;
             player.jumping = false;
             obstacles = [];
@@ -118,8 +119,9 @@
             player.y += player.velY;
 
             // Ground collision
-            if (player.y >= 250) {
-                player.y = 250;
+            const groundY = canvas.height - groundHeight - player.height;
+            if (player.y >= groundY) {
+                player.y = groundY;
                 player.jumping = false;
                 player.velY = 0;
             }
@@ -173,7 +175,7 @@
 
             // Scrolling ground (simple grass pattern)
             ctx.fillStyle = '#228B22';
-            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
 
             // Ground lines for motion illusion
             ctx.strokeStyle = '#32CD32';
