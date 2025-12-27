@@ -71,15 +71,28 @@
 
         // Keys
         const keys = {};
+        const controlKeys = new Set(['Space', 'ArrowUp', 'KeyR']);
+
+        function clearInputState() {
+            for (const key of Object.keys(keys)) {
+                delete keys[key];
+            }
+        }
 
         // Event listeners
         document.addEventListener('keydown', (e) => {
+            if (!controlKeys.has(e.code)) return;
+
             e.preventDefault();
             keys[e.code] = true;
         });
         document.addEventListener('keyup', (e) => {
+            if (!controlKeys.has(e.code)) return;
+
             keys[e.code] = false;
         });
+
+        window.addEventListener('blur', clearInputState);
 
         // Spawn obstacle randomly
         function spawnObstacle() {
@@ -102,6 +115,7 @@
             score = 0;
             gameSpeed = 6;
             gameRunning = true;
+            clearInputState();
         }
 
         // Update logic
